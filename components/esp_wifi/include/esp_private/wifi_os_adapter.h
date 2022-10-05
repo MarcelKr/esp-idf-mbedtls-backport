@@ -144,6 +144,7 @@ typedef struct {
     void * (* _coex_schm_curr_phase_get)(void);
     int (* _coex_schm_curr_phase_idx_set)(int idx);
     int (* _coex_schm_curr_phase_idx_get)(void);
+    int (* _coex_register_start_cb)(int (* cb)(void));
     int32_t _magic;
 } wifi_osi_funcs_t;
 

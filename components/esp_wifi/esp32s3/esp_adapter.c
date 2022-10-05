@@ -681,6 +681,12 @@ int32_t IRAM_ATTR coex_is_in_isr_wrapper(void)
     return !xPortCanYield();
 }
 
+static int coex_register_start_cb_wrapper(int (* cb)(void))
+{
+    ESP_LOGE(TAG, "XXX Calling stubbed function %s", __func__);
+    return 0;
+}
+
 wifi_osi_funcs_t g_wifi_osi_funcs = {
     ._version = ESP_WIFI_OS_ADAPTER_VERSION,
     ._env_is_chip = env_is_chip_wrapper,
@@ -797,6 +803,7 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
     ._coex_schm_curr_phase_get = coex_schm_curr_phase_get_wrapper,
     ._coex_schm_curr_phase_idx_set = coex_schm_curr_phase_idx_set_wrapper,
     ._coex_schm_curr_phase_idx_get = coex_schm_curr_phase_idx_get_wrapper,
+    ._coex_register_start_cb = coex_register_start_cb_wrapper,
     ._magic = ESP_WIFI_OS_ADAPTER_MAGIC,
 };
 
