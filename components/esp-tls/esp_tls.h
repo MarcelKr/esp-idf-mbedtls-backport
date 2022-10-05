@@ -19,7 +19,7 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/error.h"
-#include "mbedtls/certs.h"
+// #include "mbedtls/certs.h"
 #ifdef CONFIG_ESP_TLS_SERVER_SESSION_TICKETS
 #include "mbedtls/ssl_ticket.h"
 #endif
