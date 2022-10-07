@@ -20,6 +20,7 @@
 #include "mbedtls/sha256.h"
 
 #include <string.h>
+#include <assert.h>
 
 #if defined(MBEDTLS_SELF_TEST)
 #if defined(MBEDTLS_PLATFORM_C)
@@ -30,7 +31,7 @@
 #endif /* MBEDTLS_PLATFORM_C */
 #endif /* MBEDTLS_SELF_TEST */
 
-#include "sha/sha_dma.h"
+#include "sha/sha_block.h"
 
 /* Implementation that should never be optimized out by the compiler */
 static void mbedtls_zeroize( void *v, size_t n )
@@ -66,6 +67,8 @@ do {                                                    \
 
 void mbedtls_sha256_init( mbedtls_sha256_context *ctx )
 {
+    assert(ctx != NULL);
+
     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
 }
 
@@ -100,14 +103,21 @@ int mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
     return 0;
 }
 
+static void esp_internal_sha256_block_process(mbedtls_sha256_context *ctx, const uint8_t *data)
+{
+    esp_sha_block(ctx->mode, data, ctx->first_block);
+
+    if (ctx->first_block) {
+        ctx->first_block = false;
+    }
+}
+
 int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx, const unsigned char data[64] )
 {
-    int ret;
     esp_sha_acquire_hardware();
-    ret = esp_sha_dma(ctx->mode, data, 64, 0, 0, ctx->first_block);
+    esp_sha_block(ctx->mode, data, ctx->first_block);
     esp_sha_release_hardware();
-
-    return ret;
+    return 0;
 }
 
 /*
@@ -116,9 +126,8 @@ int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx, const unsigned
 int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *input,
                                size_t ilen )
 {
-    int ret = 0;
     size_t fill;
-    uint32_t left, len, local_len = 0;
+    uint32_t left, local_len = 0;
 
     if ( ilen == 0 ) {
         return 0;
@@ -144,32 +153,36 @@ int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *inp
         local_len = 64;
     }
 
-    len = (ilen / 64) * 64;
+    if ( (ilen >= 64) || local_len) {
 
-    if ( len || local_len) {
         esp_sha_acquire_hardware();
-
         if (ctx->sha_state == ESP_SHA256_STATE_INIT) {
             ctx->first_block = true;
+
             ctx->sha_state = ESP_SHA256_STATE_IN_PROCESS;
         } else if (ctx->sha_state == ESP_SHA256_STATE_IN_PROCESS) {
-            ctx->first_block = false;
             esp_sha_write_digest_state(ctx->mode, ctx->state);
         }
 
-        ret = esp_sha_dma(ctx->mode, input, len,  ctx->buffer, local_len, ctx->first_block);
+        /* First process buffered block, if any */
+        if ( local_len ) {
+            esp_internal_sha256_block_process(ctx, ctx->buffer);
+        }
 
+        while ( ilen >= 64 ) {
+            esp_internal_sha256_block_process(ctx, input);
+
+            input += 64;
+            ilen  -= 64;
+        }
         esp_sha_read_digest_state(ctx->mode, ctx->state);
 
         esp_sha_release_hardware();
 
-        if (ret != 0) {
-            return ret;
-        }
     }
 
     if ( ilen > 0 ) {
-        memcpy( (void *) (ctx->buffer + left), input + len, ilen - len );
+        memcpy( (void *) (ctx->buffer + left), input, ilen);
     }
 
     return 0;
