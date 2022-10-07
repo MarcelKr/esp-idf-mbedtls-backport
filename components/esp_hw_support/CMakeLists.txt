@@ -9,6 +9,7 @@ endif()
 set(srcs "compare_set.c" "cpu_util.c")
 if(NOT BOOTLOADER_BUILD)
     list(APPEND srcs "esp_async_memcpy.c"
+                     "esp_memory_utils.c"
                      "esp_clk.c"
                      "clk_ctrl_os.c"
                      "hw_random.c"
